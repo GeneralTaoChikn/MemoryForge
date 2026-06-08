@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: memoryforge-db
+    environment:
+      POSTGRES_DB: memoryforge
+      POSTGRES_USER: memoryforge
+      POSTGRES_PASSWORD: memoryforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memoryforge -d memoryforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    container_name: memoryforge-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://db:5432/memoryforge
+      DB_USER: memoryforge
+      DB_PASSWORD: memoryforge
+      # Ollama runs on the host machine. host.docker.internal resolves to the
+      # host thanks to the extra_hosts mapping below (works on Linux too).
+      OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: llama3.1
+      OLLAMA_TIMEOUT_SECONDS: 120
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Optional: a web UI for inspecting the database.
+  # Start with:  docker compose --profile tools up
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: memoryforge-pgadmin
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@memoryforge.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

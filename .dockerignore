@@ -1,0 +1,10 @@
+target/
+project/target/
+project/project/
+.git/
+.idea/
+.metals/
+.bloop/
+.bsp/
+frontend/node_modules/
+*.log
