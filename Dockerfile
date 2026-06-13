@@ -1,6 +1,10 @@
 # ---- Build stage: compile and assemble a fat jar ----
-FROM sbtscala/scala-sbt:eclipse-temurin-21.0.2_13_1.10.1_3.4.2 AS build
+# NOTE: the sbt/Scala versions baked into this image don't matter — the project
+# pins sbt 1.10.1 (project/build.properties) and Scala 3.4.2 (build.sbt), which
+# the sbt launcher fetches automatically.
+FROM sbtscala/scala-sbt:eclipse-temurin-21.0.8_9_1.12.11_3.3.7 AS build
 WORKDIR /app
+
 
 # Cache dependencies first
 COPY build.sbt ./

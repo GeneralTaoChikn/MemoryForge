@@ -257,7 +257,54 @@ top of the `<script>` block.
 
 ---
 
+## 🧯 Troubleshooting: "Could not reach Ollama / Connection refused"
+
+When the backend runs in Docker (e.g. WSL) and Ollama runs on the host, two
+things must both be true:
+
+**1. The backend must target `host.docker.internal`, not `localhost`.**
+Inside a container, `localhost` is the *container itself*. The compose file
+already sets `OLLAMA_URL=http://host.docker.internal:11434` plus the
+`extra_hosts: host.docker.internal:host-gateway` mapping. If you changed it to
+`localhost`, change it back (or set `OLLAMA_URL` in a `.env` file) and recreate:
+
+```bash
+docker compose up -d --build --force-recreate backend
+```
+
+**2. Ollama must listen on `0.0.0.0`, not just `127.0.0.1`.**
+By default Ollama only binds loopback, so it refuses connections from the Docker
+bridge even via `host.docker.internal`. On the WSL host, restart Ollama bound to
+all interfaces:
+
+```bash
+# stop any running instance first, then:
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
+```
+
+(If Ollama runs as a systemd service: `systemctl edit ollama` and add
+`Environment="OLLAMA_HOST=0.0.0.0:11434"`, then
+`systemctl daemon-reload && systemctl restart ollama`.)
+
+**Verify connectivity** from a throwaway container on the same Docker network:
+
+```bash
+docker run --rm --add-host=host.docker.internal:host-gateway curlimages/curl \
+  -s http://host.docker.internal:11434/api/tags
+```
+
+You should get a JSON list of models. Also make sure the model is pulled and the
+`OLLAMA_MODEL` value matches `ollama list` exactly (including the `:latest` tag).
+
+> Tip: if you'd rather use host networking, uncomment nothing — instead set
+> `network_mode: "host"` on the backend, change `DB_URL` host to `localhost`, and
+> set `OLLAMA_URL=http://localhost:11434`. The `host.docker.internal` approach
+> above is simpler and is what's configured by default.
+
+---
+
 ## 🔭 Future improvements
+
 
 
 - Update endpoint (`PUT /entries/{id}`) and pagination.

@@ -28,11 +28,15 @@ services:
       DB_URL: jdbc:postgresql://db:5432/memoryforge
       DB_USER: memoryforge
       DB_PASSWORD: memoryforge
-      # Ollama runs on the host machine. host.docker.internal resolves to the
-      # host thanks to the extra_hosts mapping below (works on Linux too).
-      OLLAMA_URL: http://host.docker.internal:11434
-      OLLAMA_MODEL: llama3.1
-      OLLAMA_TIMEOUT_SECONDS: 120
+      # Ollama runs on the host (WSL). From inside this container `localhost` is
+      # the container itself, so we MUST use host.docker.internal, which maps to
+      # the host via the extra_hosts entry below.
+      # NOTE: Ollama must also listen on 0.0.0.0 (OLLAMA_HOST=0.0.0.0) or it will
+      # refuse connections coming from the Docker bridge. See README troubleshooting.
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:latest}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-120}
+
     ports:
       - "8080:8080"
     extra_hosts:
