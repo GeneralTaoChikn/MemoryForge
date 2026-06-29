@@ -21,12 +21,37 @@ final class HttpApi(entries: EntryService, storyService: StoryService):
   // Permissive CORS so a separately-served frontend (any origin) can call the API.
   private val cors = Middleware.cors(Middleware.CorsConfig())
 
+  // The bundled single-page frontend, loaded once from the classpath
+  // (src/main/resources/static/index.html) so it ships inside the fat jar.
+  private val indexResponse: Response =
+    Option(getClass.getResourceAsStream("/static/index.html")) match
+      case Some(in) =>
+        try
+          val html = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+          Response(
+            status = Status.Ok,
+            headers = Headers(Header.ContentType(MediaType.text.html)),
+            body = Body.fromString(html)
+          )
+        finally in.close()
+      case None =>
+        Response.status(Status.NotFound)
+
   val routes: Routes[Any, Response] =
     (Routes(
+      // Serve the bundled frontend at the root and /index.html
+      Method.GET / "" -> handler { (_: Request) =>
+        indexResponse
+      },
+      Method.GET / "index.html" -> handler { (_: Request) =>
+        indexResponse
+      },
+
       // Health check
       Method.GET / "health" -> handler { (_: Request) =>
         Response.json("""{"status":"ok"}""")
       },
+
 
 
       // POST /entries

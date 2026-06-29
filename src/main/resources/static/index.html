@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MemoryForge</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    :root { --bg:#0f1117; --card:#1a1d27; --accent:#ff7849; --muted:#8b8fa3; --text:#e8e9ee; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:20px 24px; border-bottom:1px solid #262a38; }
+    header h1 { margin:0; font-size:22px; } header h1 span { color:var(--accent); }
+    .wrap { max-width:980px; margin:0 auto; padding:24px; display:grid; gap:24px; grid-template-columns: 1fr 1fr; }
+    .card { background:var(--card); border:1px solid #262a38; border-radius:12px; padding:18px; }
+    h2 { margin:0 0 12px; font-size:16px; }
+    label { display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; }
+    input, textarea, select { width:100%; padding:9px 10px; border-radius:8px; border:1px solid #303547;
+      background:#0f121a; color:var(--text); font-size:14px; }
+    textarea { min-height:90px; resize:vertical; }
+    button { background:var(--accent); color:#1a1003; border:none; padding:9px 14px; border-radius:8px;
+      font-weight:600; cursor:pointer; margin-top:12px; }
+    button.ghost { background:transparent; color:var(--muted); border:1px solid #303547; font-weight:500; padding:4px 8px; margin:0; }
+    .entry { border:1px solid #262a38; border-radius:10px; padding:12px; margin-bottom:12px; }
+    .entry h3 { margin:0 0 4px; font-size:15px; }
+    .meta { font-size:12px; color:var(--muted); }
+    .tag { display:inline-block; background:#23283a; color:#aab; font-size:11px; padding:2px 7px; border-radius:20px; margin:2px 4px 0 0; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+    .story { background:#0f121a; border-radius:8px; padding:10px; margin-top:8px; font-size:13px; white-space:pre-wrap; }
+    .story .t { color:var(--accent); font-weight:600; }
+    .err { color:#ff6b6b; font-size:13px; margin-top:8px; }
+    @media (max-width:820px){ .wrap{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header><h1>Memory<span>Forge</span> 🔥 — your AI journal</h1></header>
+  <div id="app" class="wrap">
+
+    <!-- Left: create + list -->
+    <div>
+      <div class="card">
+        <h2>New entry</h2>
+        <label>Title</label>
+        <input v-model="form.title" placeholder="Leg day disaster" />
+        <label>Content</label>
+        <textarea v-model="form.content" placeholder="Write whatever happened..."></textarea>
+        <label>Mood</label>
+        <input v-model="form.mood" placeholder="proud but sore" />
+        <label>Tags (comma separated)</label>
+        <input v-model="form.tags" placeholder="gym, progress" />
+        <button @click="createEntry">Save entry</button>
+        <div class="err" v-if="error">{{ error }}</div>
+      </div>
+
+      <div class="card" style="margin-top:24px;">
+        <h2>Entries</h2>
+        <div v-if="entries.length === 0" class="meta">No entries yet.</div>
+        <div class="entry" v-for="e in entries" :key="e.id" @click="select(e)" style="cursor:pointer">
+          <h3>{{ e.title }}</h3>
+          <div class="meta">{{ e.mood || 'no mood' }} · {{ fmt(e.createdAt) }}</div>
+          <div><span class="tag" v-for="t in e.tags" :key="t">#{{ t }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: detail + generate -->
+    <div class="card">
+      <h2>Generate</h2>
+      <div v-if="!selected" class="meta">Select an entry on the left.</div>
+      <div v-else>
+        <h3>{{ selected.title }}</h3>
+        <p style="font-size:13px; color:var(--muted); white-space:pre-wrap">{{ selected.content }}</p>
+        <div class="row">
+          <select v-model="mode">
+            <option value="reflective_summary">Reflective summary</option>
+            <option value="funny_story">Funny story</option>
+            <option value="dramatic_story">Dramatic story</option>
+            <option value="anime_scene">Anime scene</option>
+            <option value="brain_rot">Brain-rot meme</option>
+            <option value="theme_analysis">Theme analysis</option>
+          </select>
+          <button @click="generate" :disabled="loading">{{ loading ? 'Forging…' : 'Generate' }}</button>
+          <button class="ghost" @click="del(selected.id)">Delete entry</button>
+        </div>
+
+        <div class="story" v-for="s in storiesFor(selected.id)" :key="s.id">
+          <div class="t">{{ s.title }} <span class="meta">({{ s.genre }} / {{ s.style }})</span></div>
+          <div class="meta" style="margin:4px 0">{{ s.summary }}</div>
+          <div>{{ s.story }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    // Served from the backend itself, so use a same-origin (relative) API base.
+    // Override by setting window.API_BASE before this script if hosting elsewhere.
+    const API = (window.API_BASE ?? "");
+
+    createApp({
+      data() {
+        return {
+          form: { title: "", content: "", mood: "", tags: "" },
+          entries: [], stories: [], selected: null,
+          mode: "funny_story", loading: false, error: ""
+        };
+      },
+      methods: {
+        fmt(s) { return new Date(s).toLocaleString(); },
+        storiesFor(id) { return this.stories.filter(s => s.entryId === id); },
+        select(e) { this.selected = e; },
+        async load() {
+          try {
+            this.entries = await (await fetch(`${API}/entries`)).json();
+            this.stories = await (await fetch(`${API}/stories`)).json();
+          } catch (e) { this.error = "Cannot reach backend at " + (API || window.location.origin); }
+        },
+        async createEntry() {
+          this.error = "";
+          const tags = this.form.tags.split(",").map(t => t.trim()).filter(Boolean);
+          const res = await fetch(`${API}/entries`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: this.form.title, content: this.form.content,
+              mood: this.form.mood || null, tags })
+          });
+          if (!res.ok) { this.error = (await res.json()).message; return; }
+          this.form = { title: "", content: "", mood: "", tags: "" };
+          await this.load();
+        },
+        async generate() {
+          if (!this.selected) return;
+          this.loading = true; this.error = "";
+          try {
+            const res = await fetch(`${API}/entries/${this.selected.id}/generate-story`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mode: this.mode })
+            });
+            if (!res.ok) { this.error = (await res.json()).message; }
+            await this.load();
+          } catch (e) { this.error = String(e); }
+          finally { this.loading = false; }
+        },
+        async del(id) {
+          await fetch(`${API}/entries/${id}`, { method: "DELETE" });
+          if (this.selected && this.selected.id === id) this.selected = null;
+          await this.load();
+        }
+      },
+      mounted() { this.load(); }
+    }).mount("#app");
+  </script>
+</body>
+</html>
