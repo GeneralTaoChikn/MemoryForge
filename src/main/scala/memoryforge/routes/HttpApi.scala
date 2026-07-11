@@ -162,6 +162,7 @@ final class HttpApi(entries: EntryService, storyService: StoryService):
       case _: InvalidRequest     => (Status.BadRequest, "invalid_request")
       case _: DatabaseError      => (Status.ServiceUnavailable, "database_error")
       case _: OllamaUnavailable  => (Status.BadGateway, "ollama_unavailable")
+      case _: LLMUnavailable     => (Status.BadGateway, "llm_unavailable")
       case _: LLMTimeout         => (Status.GatewayTimeout, "llm_timeout")
       case _: InvalidLLMResponse => (Status.BadGateway, "invalid_llm_response")
     Response.json(ErrorBody(code, e.message).toJson).status(status)

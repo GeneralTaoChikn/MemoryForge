@@ -2,12 +2,13 @@
 
 **MemoryForge** is a personal AI journal and story generator. Write down your
 thoughts, dreams, gym progress, travel moments, career reflections or random
-life updates — then let a locally-running LLM (via [Ollama](https://ollama.com))
-transform them into short stories, summaries, recurring-theme analyses and
-character arcs.
+life updates — then let an LLM transform them into short stories, summaries,
+recurring-theme analyses and character arcs. MemoryForge supports local models
+via [Ollama](https://ollama.com) and hosted Google Gemini models via API key.
 
-Everything runs locally and privately: a Scala 3 / ZIO backend, a PostgreSQL
-database, and your own Ollama model. No data leaves your machine.
+With Ollama, everything runs locally and privately: a Scala 3 / ZIO backend, a
+PostgreSQL database, and your own model. With Gemini, journal content is sent to
+Google's API for generation.
 
 ---
 
@@ -24,8 +25,8 @@ database, and your own Ollama model. No data leaves your machine.
 - Structured JSON output from the LLM, with a graceful fallback to raw text when
   the model misbehaves.
 - Clean architecture: `routes → service → repository → db`, plus dedicated
-  `llm` (Ollama client) and prompt-template layers.
-- Robust error handling (missing entry, bad body, DB down, Ollama down, timeout,
+  `llm` provider-client and prompt-template layers.
+- Robust error handling (missing entry, bad body, DB down, LLM down, timeout,
   invalid LLM response).
 - Docker Compose for Postgres + backend (+ optional pgAdmin).
 
@@ -39,7 +40,7 @@ database, and your own Ollama model. No data leaves your machine.
 | Effects/HTTP | ZIO 2 + zio-http          |
 | JSON         | zio-json                  |
 | Database     | PostgreSQL (JDBC + HikariCP) |
-| LLM          | Ollama (local)            |
+| LLM          | Ollama (local) or Google Gemini |
 | Packaging    | sbt-assembly + Docker     |
 
 ---
@@ -58,7 +59,9 @@ src/main/scala/memoryforge/
 ├── repository/                # JDBC persistence
 │   ├── EntryRepository.scala
 │   └── StoryRepository.scala
-├── llm/                       # Ollama client + prompt templates
+├── llm/                       # LLM provider clients + prompt templates
+│   ├── LLMClient.scala
+│   ├── GeminiClient.scala
 │   ├── OllamaClient.scala
 │   └── PromptTemplates.scala
 ├── service/                   # business logic
@@ -73,7 +76,8 @@ src/main/scala/memoryforge/
 
 ### Prerequisites
 
-- [Ollama](https://ollama.com) installed and running on the host.
+- [Ollama](https://ollama.com) installed and running on the host, or a Google
+  Gemini API key.
 - A pulled model, e.g.:
   ```bash
   ollama pull llama3.1     # or: qwen2.5
@@ -109,8 +113,19 @@ docker compose up -d db
 export DB_URL=jdbc:postgresql://localhost:5432/memoryforge
 export DB_USER=memoryforge
 export DB_PASSWORD=memoryforge
+export LLM_PROVIDER=ollama
 export OLLAMA_URL=http://localhost:11434
 export OLLAMA_MODEL=llama3.1
+
+sbt run
+```
+
+To use Gemini instead:
+
+```bash
+export LLM_PROVIDER=gemini
+export GEMINI_API_KEY=<your-api-key>
+export GEMINI_MODEL=gemini-3.5-flash
 
 sbt run
 ```
@@ -124,9 +139,14 @@ sbt run
 | `DB_USER`                | `memoryforge`                                        |
 | `DB_PASSWORD`            | `memoryforge`                                        |
 | `DB_POOL_SIZE`           | `10`                                                 |
+| `LLM_PROVIDER`           | `ollama` (`ollama` or `gemini`)                      |
 | `OLLAMA_URL`             | `http://localhost:11434`                             |
 | `OLLAMA_MODEL`           | `llama3.1`                                            |
 | `OLLAMA_TIMEOUT_SECONDS` | `120`                                                |
+| `GEMINI_API_KEY`         | unset                                                |
+| `GEMINI_URL`             | `https://generativelanguage.googleapis.com`          |
+| `GEMINI_MODEL`           | `gemini-3.5-flash`                                   |
+| `GEMINI_TIMEOUT_SECONDS` | `120`                                                |
 
 ---
 
@@ -169,7 +189,9 @@ curl -s -X POST http://localhost:8080/entries/<ENTRY_ID>/generate-story \
 
 Other modes work the same way — just change `"mode"`:
 `reflective_summary`, `dramatic_story`, `anime_scene`, `brain_rot`,
-`theme_analysis`. You can also override the model: `{ "mode": "anime_scene", "model": "qwen2.5" }`.
+`theme_analysis`. You can also override the configured provider's model:
+`{ "mode": "anime_scene", "model": "qwen2.5" }` for Ollama or
+`{ "mode": "anime_scene", "model": "gemini-3.5-flash" }` for Gemini.
 
 Convenience endpoints:
 
@@ -218,9 +240,11 @@ curl -s http://localhost:8080/stories
 
 ## 🧠 How LLM output is handled
 
-1. The prompt (see `PromptTemplates`) asks Ollama for a single JSON object with
-   `title`, `genre`, `style`, `summary`, `story`.
-2. `OllamaClient` calls `POST /api/generate` with `format: "json"` and a timeout.
+1. The prompt (see `PromptTemplates`) asks the configured LLM for a single JSON
+   object with `title`, `genre`, `style`, `summary`, `story`.
+2. `LLMClient` routes generation to `OllamaClient` or `GeminiClient`. Ollama
+   uses `POST /api/generate` with `format: "json"`; Gemini uses the
+   Interactions API with `response_format.mime_type: "application/json"`.
 3. `StoryService.toStory` tries to parse that JSON. If parsing fails or the
    payload is empty, it **falls back** to storing the raw model text in the
    `story` field so nothing is ever lost.
@@ -235,6 +259,7 @@ curl -s http://localhost:8080/stories
 | Invalid body / bad UUID  | 400         | `invalid_request`       |
 | Database unavailable     | 503         | `database_error`        |
 | Ollama unreachable       | 502         | `ollama_unavailable`    |
+| Gemini unavailable / misconfigured | 502 | `llm_unavailable` |
 | LLM timeout              | 504         | `llm_timeout`           |
 | Unusable LLM response    | 502         | `invalid_llm_response`  |
 

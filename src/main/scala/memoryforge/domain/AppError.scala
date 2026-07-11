@@ -21,6 +21,9 @@ object AppError:
   /** 502 - Ollama could not be reached. */
   final case class OllamaUnavailable(message: String) extends AppError
 
+  /** 502 - the configured LLM provider could not be reached or used. */
+  final case class LLMUnavailable(message: String) extends AppError
+
   /** 504 - the LLM took too long to respond. */
   final case class LLMTimeout(message: String) extends AppError
 

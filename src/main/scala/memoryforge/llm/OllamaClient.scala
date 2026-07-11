@@ -22,7 +22,7 @@ private object OllamaGenerateResponse:
   given JsonDecoder[OllamaGenerateResponse] = DeriveJsonDecoder.gen[OllamaGenerateResponse]
 
 /** HTTP client for a locally running Ollama instance. */
-final class OllamaClient(config: OllamaConfig, client: Client):
+final class OllamaClient(config: OllamaConfig, client: Client) extends LLMClient:
 
   /** Calls Ollama and returns the raw text the model produced (the `response`
     * field). Asks for JSON-formatted output via `format = "json"`.

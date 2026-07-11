@@ -46,7 +46,7 @@ object GeneratedStory:
   given JsonCodec[GeneratedStory] = DeriveJsonCodec.gen[GeneratedStory]
 
 /** Optional request body for the generate endpoints. Lets the caller override
-  * the generation mode and the Ollama model.
+  * the generation mode and the configured provider's model.
   */
 final case class GenerateRequest(
     mode: Option[String] = None,

@@ -1,7 +1,7 @@
 package memoryforge.service
 
 import memoryforge.domain.*
-import memoryforge.llm.{OllamaClient, PromptTemplates}
+import memoryforge.llm.{LLMClient, PromptTemplates}
 import memoryforge.repository.StoryRepository
 import zio.*
 import zio.json.*
@@ -9,11 +9,11 @@ import zio.json.*
 import java.time.Instant
 import java.util.UUID
 
-/** Orchestrates LLM generation: build prompt -> call Ollama -> parse -> store. */
+/** Orchestrates LLM generation: build prompt -> call LLM -> parse -> store. */
 final class StoryService(
     entries: EntryService,
     stories: StoryRepository,
-    ollama: OllamaClient
+    llm: LLMClient
 ):
 
   /** Generate a story/summary/analysis for an entry using the given mode. */
@@ -25,7 +25,7 @@ final class StoryService(
     for
       entry  <- entries.get(entryId)
       prompt  = PromptTemplates.build(mode, entry)
-      raw    <- ollama.generate(prompt, modelOverride)
+      raw    <- llm.generate(prompt, modelOverride)
       story   = StoryService.toStory(entryId, mode, raw)
       saved  <- stories.create(story)
       _      <- ZIO.logInfo(s"Generated '${mode.key}' story ${saved.id} for entry $entryId")
@@ -35,7 +35,7 @@ final class StoryService(
   def listForEntry(entryId: UUID): IO[AppError, List[GeneratedStory]] = stories.getByEntry(entryId)
 
 object StoryService:
-  val live: ZLayer[EntryService & StoryRepository & OllamaClient, Nothing, StoryService] =
+  val live: ZLayer[EntryService & StoryRepository & LLMClient, Nothing, StoryService] =
     ZLayer.fromFunction(new StoryService(_, _, _))
 
   /** Strip markdown code fences the model sometimes adds despite instructions. */

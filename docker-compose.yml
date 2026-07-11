@@ -28,6 +28,7 @@ services:
       DB_URL: jdbc:postgresql://db:5432/memoryforge
       DB_USER: memoryforge
       DB_PASSWORD: memoryforge
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       # Ollama runs on the host (WSL). From inside this container `localhost` is
       # the container itself, so we MUST use host.docker.internal, which maps to
       # the host via the extra_hosts entry below.
@@ -36,6 +37,10 @@ services:
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:latest}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-120}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_URL: ${GEMINI_URL:-https://generativelanguage.googleapis.com}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash}
+      GEMINI_TIMEOUT_SECONDS: ${GEMINI_TIMEOUT_SECONDS:-120}
 
     ports:
       - "8080:8080"
