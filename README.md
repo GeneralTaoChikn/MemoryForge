@@ -1,38 +1,38 @@
-# MemoryForge 🔥📔
+# MemoryForge
 
-**MemoryForge** is a personal AI journal and story generator. Write down your
-thoughts, dreams, gym progress, travel moments, career reflections or random
-life updates — then let an LLM transform them into short stories, summaries,
-recurring-theme analyses and character arcs. MemoryForge supports local models
-via [Ollama](https://ollama.com) and hosted Google Gemini models via API key.
+**MemoryForge** is a personal journaling application that uses large language
+models to generate summaries, stories, recurring-theme analyses, and character
+arcs from journal entries. It supports local models through
+[Ollama](https://ollama.com) and hosted Google Gemini models through an API key.
 
-With Ollama, everything runs locally and privately: a Scala 3 / ZIO backend, a
-PostgreSQL database, and your own model. With Gemini, journal content is sent to
-Google's API for generation.
+When Ollama is used, journal content and generation requests remain on the
+local system. When Gemini is used, journal content is sent to Google's API.
+The application consists of a Scala 3 and ZIO backend, a PostgreSQL database,
+and an optional single-page frontend.
 
 ---
 
-## ✨ Features
+## Features
 
-- Write & manage journal entries (title, content, mood, tags).
-- Generate content from an entry in multiple **modes**:
-  - `reflective_summary` – warm, reflective journal summary
-  - `funny_story` – funny short story
-  - `dramatic_story` – dramatic short story
+- Create and manage journal entries with titles, content, moods, and tags.
+- Generate content from an entry using multiple **modes**:
+  - `reflective_summary` – reflective journal summary
+  - `funny_story` – short comedic story
+  - `dramatic_story` – short dramatic story
   - `anime_scene` – anime-style scene
-  - `brain_rot` – brain-rot meme version
-  - `theme_analysis` – recurring theme analysis
-- Structured JSON output from the LLM, with a graceful fallback to raw text when
-  the model misbehaves.
-- Clean architecture: `routes → service → repository → db`, plus dedicated
-  `llm` provider-client and prompt-template layers.
-- Robust error handling (missing entry, bad body, DB down, LLM down, timeout,
-  invalid LLM response).
-- Docker Compose for Postgres + backend (+ optional pgAdmin).
+  - `brain_rot` – meme-oriented version
+  - `theme_analysis` – recurring-theme analysis
+- Request structured JSON from the LLM, with a fallback to raw text when the
+  response cannot be parsed.
+- Separate HTTP routes, services, repositories, database access, LLM clients,
+  and prompt templates.
+- Handle missing entries, malformed requests, database failures, LLM failures,
+  timeouts, and invalid LLM responses.
+- Run PostgreSQL and the backend with Docker Compose, with optional pgAdmin.
 
 ---
 
-## 🧱 Tech stack
+## Technology
 
 | Layer        | Technology                |
 |--------------|---------------------------|
@@ -45,26 +45,26 @@ Google's API for generation.
 
 ---
 
-## 📂 Project structure
+## Project structure
 
 ```
 src/main/scala/memoryforge/
-├── Main.scala                 # ZIO app bootstrap & layer wiring
-├── config/AppConfig.scala     # env-var driven configuration
-├── db/Database.scala          # Hikari pool + schema init + transact helper
-├── domain/                    # models, errors, generation modes
+├── Main.scala                 # ZIO application bootstrap and layer wiring
+├── config/AppConfig.scala     # Environment-based configuration
+├── db/Database.scala          # Hikari pool, schema initialization, and transactions
+├── domain/                    # Models, errors, and generation modes
 │   ├── Models.scala
 │   ├── GenerationMode.scala
 │   └── AppError.scala
 ├── repository/                # JDBC persistence
 │   ├── EntryRepository.scala
 │   └── StoryRepository.scala
-├── llm/                       # LLM provider clients + prompt templates
+├── llm/                       # Provider clients and prompt templates
 │   ├── LLMClient.scala
 │   ├── GeminiClient.scala
 │   ├── OllamaClient.scala
 │   └── PromptTemplates.scala
-├── service/                   # business logic
+├── service/                   # Business logic
 │   ├── EntryService.scala
 │   └── StoryService.scala
 └── routes/HttpApi.scala       # REST endpoints
@@ -72,44 +72,44 @@ src/main/scala/memoryforge/
 
 ---
 
-## 🚀 Setup
+## Setup
 
 ### Prerequisites
 
 - [Ollama](https://ollama.com) installed and running on the host, or a Google
   Gemini API key.
-- A pulled model, e.g.:
+- A model available in Ollama, for example:
   ```bash
   ollama pull llama3.1     # or: qwen2.5
   ```
 - For local (non-Docker) runs: JDK 21, sbt, and a running PostgreSQL.
 
-### Option A — Run everything with Docker Compose (recommended)
+### Run with Docker Compose
 
-Ollama is assumed to run on your **host** machine (the backend reaches it via
-`host.docker.internal`).
+The default Docker configuration assumes that Ollama runs on the host machine.
+The backend connects to it through `host.docker.internal`.
 
 ```bash
-# 1. Make sure Ollama is running on the host and a model is pulled
+# Ensure Ollama is running and the model is available
 ollama serve            # if not already running
 ollama pull llama3.1
 
-# 2. Build & start Postgres + backend
+# Build and start PostgreSQL and the backend
 docker compose up --build
 
-# (optional) also start pgAdmin at http://localhost:5050
+# Optional: start pgAdmin at http://localhost:5050
 docker compose --profile tools up --build
 ```
 
 Backend will be available at <http://localhost:8080>.
 
-### Option B — Run the backend locally with sbt
+### Run the backend with sbt
 
 ```bash
-# Start only Postgres from compose (or use your own)
+# Start PostgreSQL with Docker Compose, or use an existing instance
 docker compose up -d db
 
-# Configure via env vars (defaults shown)
+# Set the configuration
 export DB_URL=jdbc:postgresql://localhost:5432/memoryforge
 export DB_USER=memoryforge
 export DB_PASSWORD=memoryforge
@@ -120,7 +120,7 @@ export OLLAMA_MODEL=llama3.1
 sbt run
 ```
 
-To use Gemini instead:
+To use Gemini, set the provider and API key instead:
 
 ```bash
 export LLM_PROVIDER=gemini
@@ -131,6 +131,8 @@ sbt run
 ```
 
 ### Configuration (environment variables)
+
+All configuration is provided through environment variables.
 
 | Variable                 | Default                                              |
 |--------------------------|------------------------------------------------------|
@@ -150,7 +152,7 @@ sbt run
 
 ---
 
-## 🔌 API
+## API
 
 | Method | Path                              | Description                          |
 |--------|-----------------------------------|--------------------------------------|
@@ -164,7 +166,7 @@ sbt run
 | POST   | `/entries/{id}/analyze-themes`    | Recurring theme analysis             |
 | GET    | `/stories`                        | List all generated stories           |
 
-### Example API calls
+### Examples
 
 Create an entry:
 
@@ -179,7 +181,7 @@ curl -s -X POST http://localhost:8080/entries \
   }'
 ```
 
-Generate a funny story (the default mode):
+Generate content using the default `funny_story` mode:
 
 ```bash
 curl -s -X POST http://localhost:8080/entries/<ENTRY_ID>/generate-story \
@@ -187,27 +189,30 @@ curl -s -X POST http://localhost:8080/entries/<ENTRY_ID>/generate-story \
   -d '{ "mode": "funny_story" }'
 ```
 
-Other modes work the same way — just change `"mode"`:
-`reflective_summary`, `dramatic_story`, `anime_scene`, `brain_rot`,
-`theme_analysis`. You can also override the configured provider's model:
-`{ "mode": "anime_scene", "model": "qwen2.5" }` for Ollama or
-`{ "mode": "anime_scene", "model": "gemini-3.5-flash" }` for Gemini.
+The other supported modes are `reflective_summary`, `dramatic_story`,
+`anime_scene`, `brain_rot`, and `theme_analysis`. A request can also override
+the model configured for the active provider:
 
-Convenience endpoints:
+```json
+{ "mode": "anime_scene", "model": "qwen2.5" }
+```
+
+The convenience endpoints are equivalent to requests for their corresponding
+modes:
 
 ```bash
 curl -s -X POST http://localhost:8080/entries/<ENTRY_ID>/summarize
 curl -s -X POST http://localhost:8080/entries/<ENTRY_ID>/analyze-themes
 ```
 
-List everything:
+List entries and generated stories:
 
 ```bash
 curl -s http://localhost:8080/entries
 curl -s http://localhost:8080/stories
 ```
 
-### Example journal entry (response)
+Example journal entry response:
 
 ```json
 {
@@ -221,7 +226,7 @@ curl -s http://localhost:8080/stories
 }
 ```
 
-### Example generated story (response)
+Example generated story response:
 
 ```json
 {
@@ -230,28 +235,27 @@ curl -s http://localhost:8080/stories
   "title": "The Bar That Fought Back",
   "genre": "comedy",
   "style": "funny short story",
-  "summary": "A heroic but underprepared lifter narrowly survives an epic battle with 100kg.",
-  "story": "Our hero approached the iron throne of the squat rack with the confidence of a man who had absolutely not warmed up...",
+  "summary": "A lifter narrowly completes a 100kg squat after skipping warmups.",
+  "story": "The lifter approached the squat rack with confidence, despite having skipped the warmup...",
   "createdAt": "2026-06-08T03:01:12Z"
 }
 ```
 
 ---
 
-## 🧠 How LLM output is handled
+## LLM response handling
 
-1. The prompt (see `PromptTemplates`) asks the configured LLM for a single JSON
-   object with `title`, `genre`, `style`, `summary`, `story`.
-2. `LLMClient` routes generation to `OllamaClient` or `GeminiClient`. Ollama
+1. `PromptTemplates` asks the configured provider for a single JSON object with
+   `title`, `genre`, `style`, `summary`, and `story` fields.
+2. `LLMClient` routes the request to `OllamaClient` or `GeminiClient`. Ollama
    uses `POST /api/generate` with `format: "json"`; Gemini uses the
    Interactions API with `response_format.mime_type: "application/json"`.
-3. `StoryService.toStory` tries to parse that JSON. If parsing fails or the
-   payload is empty, it **falls back** to storing the raw model text in the
-   `story` field so nothing is ever lost.
+3. `StoryService.toStory` attempts to parse the response. If parsing fails or
+   the response is empty, the raw model output is stored in the `story` field.
 
 ---
 
-## 🩺 Error handling
+## Error handling
 
 | Situation                | HTTP status | `error` code            |
 |--------------------------|-------------|-------------------------|
@@ -265,10 +269,10 @@ curl -s http://localhost:8080/stories
 
 ---
 
-## 🖥️ Optional frontend
+## Optional frontend
 
-A zero-build single-file Vue app lives in `frontend/index.html`. The backend
-already enables permissive CORS, so just serve the file and open it:
+The repository includes a zero-build Vue application in
+`frontend/index.html`. Serve it with any static file server:
 
 ```bash
 cd frontend
@@ -276,60 +280,69 @@ python3 -m http.server 5173
 # then open http://localhost:5173
 ```
 
-It lets you create entries, pick a generation mode, and view the forged stories.
-If your backend isn't on `http://localhost:8080`, edit the `API` constant at the
-top of the `<script>` block.
+Open <http://localhost:5173> in a browser. The application can create entries,
+select generation modes, and display generated stories. If the backend is not
+running at `http://localhost:8080`, update the `API` constant in the page's
+`<script>` block.
 
 ---
 
-## 🧯 Troubleshooting: "Could not reach Ollama / Connection refused"
+## Troubleshooting Ollama connectivity
 
-When the backend runs in Docker (e.g. WSL) and Ollama runs on the host, two
-things must both be true:
+When the backend runs in Docker and Ollama runs on the host, verify both of the
+following conditions.
 
-**1. The backend must target `host.docker.internal`, not `localhost`.**
-Inside a container, `localhost` is the *container itself*. The compose file
-already sets `OLLAMA_URL=http://host.docker.internal:11434` plus the
-`extra_hosts: host.docker.internal:host-gateway` mapping. If you changed it to
-`localhost`, change it back (or set `OLLAMA_URL` in a `.env` file) and recreate:
+### Use the host address from the container
+
+The backend must use `host.docker.internal`, not `localhost`. Within a
+container, `localhost` refers to the container itself. The Compose file sets
+`OLLAMA_URL=http://host.docker.internal:11434` and maps
+`host.docker.internal` to the host gateway. If the value was changed, restore it
+or set it in a `.env` file, then recreate the backend:
 
 ```bash
 docker compose up -d --build --force-recreate backend
 ```
 
-**2. Ollama must listen on `0.0.0.0`, not just `127.0.0.1`.**
-By default Ollama only binds loopback, so it refuses connections from the Docker
-bridge even via `host.docker.internal`. On the WSL host, restart Ollama bound to
-all interfaces:
+### Allow Ollama to accept container connections
+
+Ollama must listen on `0.0.0.0`, rather than only on `127.0.0.1`:
 
 ```bash
-# stop any running instance first, then:
+# Stop any existing instance first
 OLLAMA_HOST=0.0.0.0:11434 ollama serve
 ```
 
-(If Ollama runs as a systemd service: `systemctl edit ollama` and add
-`Environment="OLLAMA_HOST=0.0.0.0:11434"`, then
-`systemctl daemon-reload && systemctl restart ollama`.)
+If Ollama runs as a systemd service, use `systemctl edit ollama` to add:
 
-**Verify connectivity** from a throwaway container on the same Docker network:
+```ini
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+```
+
+Then reload the service configuration and restart Ollama:
+
+```bash
+systemctl daemon-reload
+systemctl restart ollama
+```
+
+Test connectivity from a temporary container:
 
 ```bash
 docker run --rm --add-host=host.docker.internal:host-gateway curlimages/curl \
   -s http://host.docker.internal:11434/api/tags
 ```
 
-You should get a JSON list of models. Also make sure the model is pulled and the
-`OLLAMA_MODEL` value matches `ollama list` exactly (including the `:latest` tag).
+The response should contain the available models. Confirm that `OLLAMA_MODEL`
+matches the model name shown by `ollama list`, including any `:latest` tag.
 
-> Tip: if you'd rather use host networking, uncomment nothing — instead set
-> `network_mode: "host"` on the backend, change `DB_URL` host to `localhost`, and
-> set `OLLAMA_URL=http://localhost:11434`. The `host.docker.internal` approach
-> above is simpler and is what's configured by default.
+If host networking is required instead, set `network_mode: "host"` on the
+backend, use `localhost` as the database host, and set
+`OLLAMA_URL=http://localhost:11434`.
 
 ---
 
-## 🔭 Future improvements
-
+## Future work
 
 
 - Update endpoint (`PUT /entries/{id}`) and pagination.
@@ -342,6 +355,6 @@ You should get a JSON list of models. Also make sure the model is pulled and the
 
 ---
 
-## 📜 License
+## License
 
-MIT — personal project, hack away.
+MIT
